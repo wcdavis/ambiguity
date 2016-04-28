@@ -31,11 +31,11 @@ def load_data_and_labels():
     Returns split sentences and labels.
     """
     # Load data from files
-    #positive_examples = list(open("./data/rt-polaritydata/rt-polarity.pos").readlines())
-    positive_examples = list(open("./data/rt-polaritydata/certainbio.txt").readlines())
+    #positive_examples = list(open("~/ambiguity/data/rt-polaritydata/rt-polarity.pos").readlines())
+    positive_examples = list(open("/home/wcdavis/ambiguity/data/rt-polaritydata/certainbio.txt").readlines())
     positive_examples = [s.strip() for s in positive_examples]
     #negative_examples = list(open("./data/rt-polaritydata/rt-polarity.neg").readlines())
-    negative_examples = list(open("./data/rt-polaritydata/uncertainbio.txt").readlines())
+    negative_examples = list(open("/home/wcdavis/ambiguity/data/rt-polaritydata/uncertainbio.txt").readlines())
     negative_examples = [s.strip() for s in negative_examples]
     # Split by words
     x_text = positive_examples + negative_examples
@@ -106,6 +106,7 @@ def batch_iter(data, batch_size, num_epochs):
     data = np.array(data)
     data_size = len(data)
     num_batches_per_epoch = int(len(data)/batch_size) + 1
+    print "Num batches per epoch: " + str(num_batches_per_epoch)
     for epoch in range(num_epochs):
         # Shuffle the data at each epoch
         shuffle_indices = np.random.permutation(np.arange(data_size))

@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-
+from sklearn.metrics import *
 
 class TextCNN(object):
     """
@@ -79,3 +79,28 @@ class TextCNN(object):
         with tf.name_scope("accuracy"):
             correct_predictions = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
             self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
+
+        with tf.name_scope("out_labels"):
+	    self.out_labels = self.predictions
+
+	with tf.name_scope("output_y"):
+	    self.output_y = tf.argmax(self.input_y, 1)
+	# Precision
+	#with tf.name_scope("precision"):
+#            num_predicted_true = np.sum(self.predictions)
+#	    num_actually_true = np.sum(tf.argmax(self.input_y, 1))
+#            correct_predictions = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
+#            self.precision = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
+#	    labels = tf.argmax(self.input_y, 1)
+# 	    print type(labels)
+#	    print(classification_report(labels, self.predictions))
+
+	# Recall
+	#with tf.name_scope("recall"):
+	#    y_true = tf.argmax(self.input_y, 1)
+	#    self.recall = recall_score(y_true, self.predictions)
+
+	# F1 
+	#with tf.name_scope("f1"):
+	#    y_true = tf.argmax(self.input_y, 1)
+	#    self.f1 = f1_score(y_true, self.predictions)

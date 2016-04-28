@@ -6,6 +6,7 @@ import os
 import time
 import datetime
 import data_helpers
+from sklearn.metrics import *
 from text_cnn import TextCNN
 
 # Parameters
@@ -20,7 +21,7 @@ tf.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularizaion lambda (default: 0
 
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
+tf.flags.DEFINE_integer("num_epochs", 100, "Number of training epochs (default: 200)")
 tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
 tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
 # Misc Parameters
@@ -48,8 +49,8 @@ x_shuffled = x[shuffle_indices]
 y_shuffled = y[shuffle_indices]
 # Split train/test set
 # TODO: This is very crude, should use cross-validation
-x_train, x_dev = x_shuffled[:-1000], x_shuffled[-1000:]
-y_train, y_dev = y_shuffled[:-1000], y_shuffled[-1000:]
+x_train, x_dev = x_shuffled[:-100], x_shuffled[-100:]
+y_train, y_dev = y_shuffled[:-100], y_shuffled[-100:]
 print("Vocabulary Size: {:d}".format(len(vocabulary)))
 print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
 
@@ -115,7 +116,9 @@ with tf.Graph().as_default():
         saver = tf.train.Saver(tf.all_variables())
 
         # Initialize all variables
-        sess.run(tf.initialize_all_variables())
+        #sess.run(tf.initialize_all_variables())
+	saver.restore(sess, "./runs/1461699349/checkpoints/model-10000")
+	print "successfully restored model" 
 
         def train_step(x_batch, y_batch):
             """
@@ -126,11 +129,29 @@ with tf.Graph().as_default():
               cnn.input_y: y_batch,
               cnn.dropout_keep_prob: FLAGS.dropout_keep_prob
             }
-            _, step, summaries, loss, accuracy = sess.run(
-                [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy],
+            _, step, summaries, loss, accuracy, out_labels, y_output = sess.run(
+                [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy, cnn.out_labels, cnn.output_y],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
-            print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+	    #predicted_true = np.sum(pred)
+            #predicted_false = len(pred) - predicted_true
+            #labels = tf.argmax(input_y, 1)
+            #actual_true = np.sum(labels)
+            #actual_false = len(labels) - actual_true
+	    #precision = predicted_true / actual_true
+            #recall = predicted_true / actual_true
+            precision = 0.0
+	    recall = 0.0
+            print("{}: step {}, loss {:g}, acc {:g}, P {:g}, R {:g}".format(time_str, step, loss, accuracy, precision, recall))
+	    if step % 50 == 0:
+	    	pred_1 = np.sum(out_labels)
+            	pred_0 = len(out_labels) - pred_1
+            	actual_1 = np.sum(y_output)
+            	actual_0 = len(y_output) - actual_1
+	    	print "Prediction: ", pred_0, pred_1
+            	print "Actual:     ", actual_0, actual_1
+	    	print classification_report(out_labels, y_output, digits=4)
+
             train_summary_writer.add_summary(summaries, step)
 
         def dev_step(x_batch, y_batch, writer=None):
@@ -140,13 +161,23 @@ with tf.Graph().as_default():
             feed_dict = {
               cnn.input_x: x_batch,
               cnn.input_y: y_batch,
-              cnn.dropout_keep_prob: 1.0
+              cnn.dropout_keep_prob: 1
             }
-            step, summaries, loss, accuracy = sess.run(
-                [global_step, dev_summary_op, cnn.loss, cnn.accuracy],
+            step, summaries, loss, accuracy, out_labels, y_output= sess.run(
+                [global_step, dev_summary_op, cnn.loss, cnn.accuracy, cnn.out_labels, cnn.output_y],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
+
+	    pred_1 = np.sum(out_labels)
+            pred_0 = len(out_labels) - pred_1
+            actual_1 = np.sum(y_output)
+            actual_0 = len(y_output) - actual_1
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+	    print out_labels
+	    print y_output
+	    print "Prediction: ", pred_0, pred_1
+            print "Actual:     ", actual_0, actual_1
+	    print classification_report(out_labels, y_output, digits=4)
             if writer:
                 writer.add_summary(summaries, step)
 
