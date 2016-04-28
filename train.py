@@ -155,7 +155,7 @@ with tf.Graph().as_default():
             	actual_0 = len(y_output) - actual_1
 	    	print "Prediction: ", pred_0, pred_1
             	print "Actual:     ", actual_0, actual_1
-	    	print classification_report(out_labels, y_output)
+	    	print classification_report(out_labels, y_output, digits=4)
 
             train_summary_writer.add_summary(summaries, step)
 
