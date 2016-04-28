@@ -32,10 +32,10 @@ def load_data_and_labels():
     """
     # Load data from files
     #positive_examples = list(open("~/ambiguity/data/rt-polaritydata/rt-polarity.pos").readlines())
-    positive_examples = list(open("/home/wcdavis/ambiguity/data/rt-polaritydata/certainbio.txt").readlines())
+    positive_examples = list(open("/home/ubuntu/ambiguity/data/rt-polaritydata/certainbio.txt").readlines())
     positive_examples = [s.strip() for s in positive_examples]
     #negative_examples = list(open("./data/rt-polaritydata/rt-polarity.neg").readlines())
-    negative_examples = list(open("/home/wcdavis/ambiguity/data/rt-polaritydata/uncertainbio.txt").readlines())
+    negative_examples = list(open("/home/ubuntu/ambiguity/data/rt-polaritydata/uncertainbio.txt").readlines())
     negative_examples = [s.strip() for s in negative_examples]
     # Split by words
     x_text = positive_examples + negative_examples

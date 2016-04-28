@@ -6,6 +6,7 @@ import os
 import time
 import datetime
 import data_helpers
+import sys
 from sklearn.metrics import *
 from text_cnn import TextCNN
 
@@ -49,14 +50,17 @@ x_shuffled = x[shuffle_indices]
 y_shuffled = y[shuffle_indices]
 # Split train/test set
 # TODO: This is very crude, should use cross-validation
-x_train, x_dev = x_shuffled[:-100], x_shuffled[-100:]
-y_train, y_dev = y_shuffled[:-100], y_shuffled[-100:]
+x_train, x_dev = x_shuffled[:-1000], x_shuffled[-1000:]
+y_train, y_dev = y_shuffled[:-1000], y_shuffled[-1000:]
 print("Vocabulary Size: {:d}".format(len(vocabulary)))
 print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
 
 
 # Training
 # ==================================================
+
+config = tf.ConfigProto()
+config.gpu_options.allocator_type='BFC'
 
 with tf.Graph().as_default():
     session_conf = tf.ConfigProto(
@@ -90,8 +94,8 @@ with tf.Graph().as_default():
         grad_summaries_merged = tf.merge_summary(grad_summaries)
 
         # Output directory for models and summaries
-        timestamp = str(int(time.time()))
-        out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
+        #timestamp = str(int(time.time()))
+        out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", sys.argv[1]))
         print("Writing to {}\n".format(out_dir))
 
         # Summaries for loss and accuracy
@@ -116,9 +120,9 @@ with tf.Graph().as_default():
         saver = tf.train.Saver(tf.all_variables())
 
         # Initialize all variables
-        #sess.run(tf.initialize_all_variables())
-	saver.restore(sess, "./runs/1461699349/checkpoints/model-10000")
-	print "successfully restored model" 
+        sess.run(tf.initialize_all_variables())
+	#saver.restore(sess, "./runs/1461699349/checkpoints/model-10000")
+	#print "successfully restored model" 
 
         def train_step(x_batch, y_batch):
             """
@@ -143,6 +147,7 @@ with tf.Graph().as_default():
             precision = 0.0
 	    recall = 0.0
             print("{}: step {}, loss {:g}, acc {:g}, P {:g}, R {:g}".format(time_str, step, loss, accuracy, precision, recall))
+
 	    if step % 50 == 0:
 	    	pred_1 = np.sum(out_labels)
             	pred_0 = len(out_labels) - pred_1
@@ -150,34 +155,43 @@ with tf.Graph().as_default():
             	actual_0 = len(y_output) - actual_1
 	    	print "Prediction: ", pred_0, pred_1
             	print "Actual:     ", actual_0, actual_1
-	    	print classification_report(out_labels, y_output, digits=4)
+	    	print classification_report(out_labels, y_output)
 
             train_summary_writer.add_summary(summaries, step)
 
-        def dev_step(x_batch, y_batch, writer=None):
+        def dev_step(dev_data, writer=None):
             """
             Evaluates model on a dev set
             """
-            feed_dict = {
-              cnn.input_x: x_batch,
-              cnn.input_y: y_batch,
-              cnn.dropout_keep_prob: 1
-            }
-            step, summaries, loss, accuracy, out_labels, y_output= sess.run(
-                [global_step, dev_summary_op, cnn.loss, cnn.accuracy, cnn.out_labels, cnn.output_y],
-                feed_dict)
-            time_str = datetime.datetime.now().isoformat()
+	    labels = np.array([])
+            actual_output = np.array([])
+	    step = 0
+	    for dev_batch in dev_data:
+	        dev_batch_x, dev_batch_y = zip(*dev_batch)
+                feed_dict = {
+                  cnn.input_x: dev_batch_x,
+                  cnn.input_y: dev_batch_y,
+                  cnn.dropout_keep_prob: 1
+                }
+                s, summaries, loss, accuracy, out_labels, y_output= sess.run(
+                    [global_step, dev_summary_op, cnn.loss, cnn.accuracy, cnn.out_labels, cnn.output_y],
+                    feed_dict)
+		labels = np.append(labels, out_labels)
+                actual_output = np.append(actual_output, y_output)
+                step = s
 
-	    pred_1 = np.sum(out_labels)
-            pred_0 = len(out_labels) - pred_1
-            actual_1 = np.sum(y_output)
-            actual_0 = len(y_output) - actual_1
-            print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
-	    print out_labels
-	    print y_output
+            time_str = datetime.datetime.now().isoformat()
+	    pred_1 = np.sum(labels)
+            pred_0 = len(labels) - pred_1
+            actual_1 = np.sum(actual_output)
+            actual_0 = len(actual_output) - actual_1
+            #print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+#	    print out_labels
+#	    print y_output
 	    print "Prediction: ", pred_0, pred_1
             print "Actual:     ", actual_0, actual_1
-	    print classification_report(out_labels, y_output, digits=4)
+	    print classification_report(labels, actual_output)
+	    print confusion_matrix(labels, actual_output)
             if writer:
                 writer.add_summary(summaries, step)
 
@@ -191,7 +205,9 @@ with tf.Graph().as_default():
             current_step = tf.train.global_step(sess, global_step)
             if current_step % FLAGS.evaluate_every == 0:
                 print("\nEvaluation:")
-                dev_step(x_dev, y_dev, writer=dev_summary_writer)
+                dev_batches = data_helpers.batch_iter(
+            		zip(x_dev, y_dev), FLAGS.batch_size, 1)
+                dev_step(dev_batches, writer=dev_summary_writer)
                 print("")
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
